@@ -10,6 +10,7 @@ class ComView extends Lego.UI.Baseview {
         const options = {
             rootId: 0,
             fieldName: 'key',
+            width: 120,
             name: ['province', 'city', 'area'], //表单域名称 国家country, 省province, 市city, 区area
             placeholder: ['请选择省份', '请选择城市', '请选择区域'],
             value: [],
@@ -22,6 +23,7 @@ class ComView extends Lego.UI.Baseview {
     components(){
         let opts = this.options,
             that = this;
+        if(!Array.isArray(opts.name)) opts.name = [opts.name];
         if(opts.data){
             function filterData(pId){
                 let newData = [],
@@ -78,6 +80,9 @@ class ComView extends Lego.UI.Baseview {
             `;
         }
         return vDom;
+    }
+    renderAfter(){
+        this.$('.select').width(this.options.width);
     }
 }
 Lego.components('areapicker', ComView);
