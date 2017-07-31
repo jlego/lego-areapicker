@@ -1,5 +1,5 @@
 /**
- * area-picker.js v0.0.1
+ * area-picker.js v0.0.41
  * (c) 2017 yuronghui
  * @license MIT
  */
@@ -24,7 +24,7 @@ var _createClass = function() {
 
 var _templateObject = _taggedTemplateLiteral([ "<div></div>" ], [ "<div></div>" ]);
 
-var _templateObject2 = _taggedTemplateLiteral([ '\n            <div class="lego-area-picker">\n                ', "\n            </div>\n            " ], [ '\n            <div class="lego-area-picker">\n                ', "\n            </div>\n            " ]);
+var _templateObject2 = _taggedTemplateLiteral([ '\n            <div class="lego-area-picker">\n                <input type="hidden" name="', '" value="', '" >\n                ', "\n            </div>\n            " ], [ '\n            <div class="lego-area-picker">\n                <input type="hidden" name="', '" value="', '" >\n                ', "\n            </div>\n            " ]);
 
 var _templateObject3 = _taggedTemplateLiteral([ '<selects id="selects_', '"></selects>' ], [ '<selects id="selects_', '"></selects>' ]);
 
@@ -71,9 +71,11 @@ var ComView = function(_Lego$UI$Baseview) {
         _classCallCheck(this, ComView);
         var options = {
             rootId: 0,
-            fieldName: "key",
+            fieldName: "value",
             width: 120,
-            name: [ "province", "city", "area" ],
+            maxHeight: 300,
+            name: "",
+            nameArr: [ "province", "city", "area" ],
             placeholder: [ "请选择省份", "请选择城市", "请选择区域" ],
             value: [],
             selectOpts: {},
@@ -85,43 +87,74 @@ var ComView = function(_Lego$UI$Baseview) {
     _createClass(ComView, [ {
         key: "components",
         value: function components() {
+            var _this2 = this;
             var opts = this.options, that = this;
-            if (!Array.isArray(opts.name)) opts.name = [ opts.name ];
+            this.dataKeyMap = {};
+            this.dataValueMap = {};
+            if (opts.value) opts.value = typeof opts.value == "function" ? val(opts.value) : opts.value;
+            if (!Array.isArray(opts.nameArr)) opts.nameArr = [ opts.nameArr ];
             if (opts.data) {
                 var filterData = function filterData(pId) {
                     var newData = [], data = opts.data[pId];
-                    for (var key in data) {
+                    for (var _key in data) {
                         newData.push({
-                            key: key,
-                            value: data[key]
+                            key: _key,
+                            value: data[_key]
                         });
                     }
                     return newData;
                 };
                 var _updateSelect = function _updateSelect(name, parentId) {
-                    var index = opts.name.indexOf(name), theData = filterData(parentId);
+                    var index = opts.nameArr.indexOf(name), theData = filterData(parentId);
                     if (index > -1) {
                         var selectsView = Lego.getView("#selects_" + name);
                         if (selectsView) {
                             selectsView.options.value = [];
                             selectsView.options.data = theData;
                             selectsView.refresh();
-                            _updateSelect(opts.name[index + 1], 0);
+                            _updateSelect(opts.nameArr[index + 1], 0);
                         }
                     }
                 };
-                opts.name.forEach(function(value, index) {
-                    that.addCom(Object.assign({
+                for (var key in opts.data) {
+                    for (var subKey in opts.data[key]) {
+                        this.dataKeyMap[subKey] = this.dataValueMap[opts.data[key][subKey]] = {
+                            key: subKey,
+                            value: opts.data[key][subKey],
+                            parentId: key
+                        };
+                    }
+                }
+                opts.nameArr.forEach(function(value, index) {
+                    var model = opts.fieldName == "value" ? _this2.dataValueMap[opts.value[index]] : _this2.dataKeyMap[opts.value[index]];
+                    var selectViewOpt = {
                         el: "#selects_" + value,
+                        listener: {},
                         name: value,
                         fieldName: opts.fieldName,
                         placeholder: opts.placeholder[index],
-                        data: !index ? filterData(opts.rootId) : [],
+                        dropdownHeight: opts.maxHeight,
+                        data: !index ? filterData(opts.rootId) : model ? filterData(model.parentId) : [],
+                        value: model ? [ model ] : [],
                         onChange: function onChange(self, result) {
-                            _updateSelect(opts.name[index + 1], result.key);
-                            if (typeof opts.onChange == "function") opts.onChange(that, result);
+                            if (!index) opts.value = [];
+                            opts.value[index] = result[opts.fieldName];
+                            if (opts.nameArr[index + 1]) {
+                                _updateSelect(opts.nameArr[index + 1], result.key);
+                            } else {
+                                that.getValue();
+                                if (typeof opts.onChange == "function") opts.onChange(that, opts.value);
+                            }
                         }
-                    }, opts.selectOpts));
+                    };
+                    selectViewOpt.listener["updateAreaSelect_" + opts.vid + "_" + index] = function(data) {
+                        if (data) {
+                            var _model = opts.fieldName == "value" ? that.dataValueMap[data] : that.dataKeyMap[data];
+                            this.options.value = _model ? [ _model ] : [];
+                            this.refresh();
+                        }
+                    };
+                    that.addCom(Object.assign(selectViewOpt, opts.selectOpts));
                 });
             }
         }
@@ -129,8 +162,9 @@ var ComView = function(_Lego$UI$Baseview) {
         key: "render",
         value: function render() {
             var opts = this.options, vDom = hx(_templateObject);
+            if (opts.value) opts.value = typeof opts.value == "function" ? val(opts.value) : opts.value;
             if (opts.data) {
-                vDom = hx(_templateObject2, opts.name.map(function(value) {
+                vDom = hx(_templateObject2, opts.name, opts.value.length ? opts.value.join(",") : "", opts.nameArr.map(function(value) {
                     return hx(_templateObject3, value);
                 }));
             }
@@ -139,7 +173,21 @@ var ComView = function(_Lego$UI$Baseview) {
     }, {
         key: "renderAfter",
         value: function renderAfter() {
+            var opts = this.options;
             this.$(".select").width(this.options.width);
+            if (opts.value.length) {
+                opts.value.forEach(function(item, index) {
+                    Lego.Eventer.trigger("updateAreaSelect_" + opts.vid + "_" + index, item);
+                });
+            }
+        }
+    }, {
+        key: "getValue",
+        value: function getValue() {
+            var opts = this.options, theValue = "", inputEl = this.$("input[name=" + opts.name + "]");
+            theValue = opts.value.join(",");
+            inputEl.val(theValue).valid();
+            return opts.value;
         }
     } ]);
     return ComView;
