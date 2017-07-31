@@ -1,4 +1,4 @@
-# com-areapicker 地区选择组件
+# lego-areapicker 地区选择组件
 
 ### 参数说明：
 - rootId: '117', 根节点ID
@@ -13,4 +13,4 @@
 - onChange(self, result){}
 
 ### 效果图：
-![A screenshot of your package](http://gogs/yuronghui/com-areapicker/raw/master/preview.png)
+![A screenshot of your package](https://github.com/jlego/lego-areapicker/blob/master/preview.png)
